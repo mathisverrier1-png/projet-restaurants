@@ -1,0 +1,58 @@
+name : CI/CD Pipeline
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. JOB D'INTEGRATION CONTINUE (CI) : VALIDATION ET TESTS
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest black requests flask flask_cors
+      - name: Check code style with Black
+        run: python -m black --check . 
+      - name: Run tests with pytest
+        run: python -m pytest 
+  
+  # 2. JOB DE LIVRAISON CONTINUE (CD) : PACKAGING DOCKER
+  docker-build-and-push:
+    # Cette ligne est cruciale : Le CD ne s'exécute QUE si le job 'build-and-test' a réussi
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # Le CD se lance uniquement sur le push vers la branche main (pas sur un pull request)
+    if: github.ref == 'refs/heads/main' && success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }} # Utilisé pour pousser
+          password: ${{ secrets.DOCKER_PASSWORD }} # Utilisé pour pousser
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Cherche le Dockerfile dans le répertoire courant
+          push: true # Pousse l'image vers le registre
+          tags: ${{ secrets.DOCKER_USERNAME }}/mon-api-flask:latest 
+          cache-from: type=gha # Utilise le cache pour accélérer la construction
+          cache-to: type=gha,mode=max
+          
+      - name: Annonce de l'Artefact (Fin de la Phase CD)
+        run: echo "L'Image Docker a été packagée et stockée sur Docker Hub (C13)."

@@ -1,0 +1,11 @@
+# Ignorer les dépendances Python
+__pycache__/
+*.pyc
+venv/
+
+
+# Ignorer la configuration de la BDD (sécurité)
+# Si vous aviez un fichier de config de BDD, il faudrait l'ignorer ici
+
+# Ignorer l'environnement de travail
+.DS_Store

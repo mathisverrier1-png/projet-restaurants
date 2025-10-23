@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurants</title>
+    <style>
+        h1 {
+            text-align: center;
+            font-family: 'Humanist 777', sans-serif;
+        }
+        table {
+            width: 85%;
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+        th, td {
+            border: 2px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f4f4f4;
+            text-align: left;
+        }
+        .chart {
+            width: 60%; /* Largeur réduite */
+            height: 400px; /* Hauteur uniformisée */
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
+    <!-- Inclure Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <h1>KPIs des Restaurants par Ville</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Ville</th>
+                <th>Nombre de Restaurants</th>
+                <th>Note Moyenne</th>
+                <th>Total des Avis</th>
+                <th>Meilleure Note</th>
+                <th>Pire Note</th>
+            </tr>
+        </thead>
+        <tbody id="kpi-table">
+            <!-- Les KPIs seront insérés ici par JavaScript -->
+        </tbody>
+    </table>
+
+    <h1>Graphique Bar Chart : Notes Moyennes des Restaurants</h1>
+    <canvas id="avgRatingChart" class="chart"></canvas>
+
+    <h1>Graphique Bubble Chart : Moyenne, Nombre d'Avis et Taille</h1>
+    <canvas id="bubbleChart" class="chart"></canvas>
+
+    <h1>Graphique Pie Chart : Répartition des Restaurants par Ville</h1>
+    <canvas id="pieChart" class="chart"></canvas>
+
+    <h1>Graphique Line Chart : Tendance des Notes Moyennes</h1>
+    <canvas id="lineChart" class="chart"></canvas>
+
+    <h1>Liste des Restaurants</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Note</th>
+                <th>Nombre d'Avis</th>
+                <th>Pays</th>
+                <th>Ville</th>
+                <th>Population ville</th>
+                <th>Population et périphérie</th>
+            </tr>
+        </thead>
+        <tbody id="restaurant-table">
+            <!-- Les données des restaurants seront insérées ici par JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        // Chargement des données pour les restaurants
+        fetch('http://127.0.0.1:5000/api/restaurants')
+            .then(response => response.json())
+            .then(data => {
+                const table = document.getElementById('restaurant-table');
+                data.forEach(restaurant => {
+                    const row = `
+                        <tr>
+                            <td>${restaurant.nom}</td>
+                            <td>${restaurant.note}</td>
+                            <td>${restaurant.nb_avis}</td>
+                            <td>${restaurant.pays}</td>
+                            <td>${restaurant.ville}</td>
+                            <td>${restaurant.pop_city}</td>
+                            <td>${restaurant.all_pop_city}</td>
+                        </tr>
+                    `;
+                    table.innerHTML += row;
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+
+        // Chargement des KPIs
+        fetch('http://127.0.0.1:5000/api/kpis')
+            .then(response => response.json())
+            .then(data => {
+                const table = document.getElementById('kpi-table');
+                data.forEach(kpi => {
+                    const row = `
+                        <tr>
+                            <td>${kpi.ville}</td>
+                            <td>${kpi.nombre_restaurants}</td>
+                            <td>${kpi.moyenne_note}</td>
+                            <td>${kpi.total_avis}</td>
+                            <td>${kpi.meilleure_note}</td>
+                            <td>${kpi.pire_note}</td>
+                        </tr>
+                    `;
+                    table.innerHTML += row;
+                });
+
+                const villes = data.map(kpi => kpi.ville);
+                const moyenneNotes = data.map(kpi => kpi.moyenne_note);
+
+                // Bar Chart
+                const avgCtx = document.getElementById('avgRatingChart').getContext('2d');
+                new Chart(avgCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: villes,
+                        datasets: [{
+                            label: 'Note Moyenne',
+                            data: moyenneNotes,
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+
+        // Bubble Chart
+        fetch('http://127.0.0.1:5000/api/bubble-chart')
+            .then(response => response.json())
+            .then(data => {
+                const bubbleData = data.map(item => ({
+                    x: item.moyenne_note,
+                    y: item.total_avis,
+                    r: item.nombre_restaurants
+                }));
+
+                const bubbleCtx = document.getElementById('bubbleChart').getContext('2d');
+                new Chart(bubbleCtx, {
+                    type: 'bubble',
+                    data: {
+                        datasets: [{
+                            label: 'Restaurants',
+                            data: bubbleData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true
+                    }
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+
+        // Pie Chart
+        fetch('http://127.0.0.1:5000/api/pie-chart')
+            .then(response => response.json())
+            .then(data => {
+                const villes = data.map(item => item.ville);
+                const restaurants = data.map(item => item.nombre_restaurants);
+
+                const pieCtx = document.getElementById('pieChart').getContext('2d');
+                new Chart(pieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: villes,
+                        datasets: [{
+                            label: 'Répartition des Restaurants',
+                            data: restaurants,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.2)',
+                                'rgba(54, 162, 235, 0.2)',
+                                'rgba(255, 206, 86, 0.2)',
+                                'rgba(75, 192, 192, 0.2)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true
+                    }
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+
+        // Line Chart
+        fetch('http://127.0.0.1:5000/api/line-chart')
+            .then(response => response.json())
+            .then(data => {
+                const villes = data.map(item => item.ville);
+                const moyenneNotes = data.map(item => item.moyenne_note);
+
+                const lineCtx = document.getElementById('lineChart').getContext('2d');
+                new Chart(lineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: villes,
+                        datasets: [{
+                            label: 'Note Moyenne',
+                            data: moyenneNotes,
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            fill: false,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Erreur:', error));
+    </script>
+
+</body>
+</html>
